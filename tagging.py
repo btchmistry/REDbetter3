@@ -114,18 +114,18 @@ def copy_tags(flac_file, transcode_file):
 
     if transcode_ext == '.flac':
         transcode_info = mutagen.flac.FLAC(transcode_file)
-        valid_key_fn = lambda k: True
+        def valid_key_fn(k): return True
 
     elif transcode_ext == '.mp3':
         transcode_info = mutagen.mp3.EasyMP3(transcode_file)
-        valid_key_fn = lambda k: k in list(EasyID3.valid_keys.keys())
+        def valid_key_fn(k): return k in list(EasyID3.valid_keys.keys())
 
     else:
         raise TaggingException('Unsupported tag format "%s"' % transcode_file)
 
     for tag in filter(valid_key_fn, flac_info):
         # scrub the FLAC tags, just to be on the safe side.
-        values = [scrub_tag(tag,v) for v in flac_info[tag]]
+        values = [scrub_tag(tag, v) for v in flac_info[tag]]
         if values and values != ['']:
             transcode_info[tag] = values
 
@@ -164,25 +164,31 @@ def copy_tags(flac_file, transcode_file):
 
 # EasyID3 extensions for redactedbetter.
 
+
 for key, frameid in {
-    'albumartist': 'TPE2',
-    'album artist': 'TPE2',
-    'grouping': 'TIT1',
-    'content group': 'TIT1',
-    }.items():
+                    'albumartist': 'TPE2',
+                    'album artist': 'TPE2',
+                    'grouping': 'TIT1',
+                    'content group': 'TIT1',
+                    }.items():
     EasyID3.RegisterTextKey(key, frameid)
+
 
 def comment_get(id3, _):
     return [comment.text for comment in id3['COMM'].text]
 
+
 def comment_set(id3, _, value):
     id3.add(mutagen.id3.COMM(encoding=3, lang='eng', desc='', text=value))
+
 
 def originaldate_get(id3, _):
     return [stamp.text for stamp in id3['TDOR'].text]
 
+
 def originaldate_set(id3, _, value):
     id3.add(mutagen.id3.TDOR(encoding=3, text=value))
+
 
 EasyID3.RegisterKey('comment', comment_get, comment_set)
 EasyID3.RegisterKey('description', comment_get, comment_set)
