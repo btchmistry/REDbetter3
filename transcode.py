@@ -203,7 +203,8 @@ def transcode(flac_file, output_dir, output_format):
         elif sample_rate % 48000 == 0:
             needed_sample_rate = '48000'
         else:
-            raise UnknownSampleRateException('FLAC file "{0}" has a sample rate {1}, which is not 88.2 , 176.4 or 96kHz but needs resampling, this is unsupported'.format(flac_file, sample_rate))
+            raise UnknownSampleRateException(f'FLAC file "{flac_file}" has a sample rate {sample_rate}, which is not 88.2, 176.4 or'
+                                             f'96kHz but needs resampling, this is unsupported')
 
     if flac_info.info.channels > 2:
         raise TranscodeDownmixException('FLAC file "%s" has more than 2 channels, unsupported' % flac_file)
@@ -267,7 +268,9 @@ def path_length_exceeds_limit(flac_dir, basename):
 
 def get_suitable_basename(basename):
     h = HTMLParser()
-    return h.unescape(basename).replace('\\', ',').replace('/', ',').replace(':', ',').replace('*', '').replace('?', '').replace('"', '').replace('<', '').replace('>', '').replace('|', '')
+    h = h.unescape(basename).replace('\\', ',').replace('/', ',').replace(':', ',').replace('*', '')
+    h = h.replace('?', '').replace('"', '').replace('<', '').replace('>', '').replace('|', '')
+    return h
 
 
 def get_transcode_dir(flac_dir, output_dir, basename, output_format, resample):
@@ -286,8 +289,8 @@ def get_transcode_dir(flac_dir, output_dir, basename, output_format, resample):
             The current directory name is: " + get_suitable_basename(basename) + " \n\
             Please enter a shorter directory name: "))
 
-            # The current directory name is: " + get_suitable_basename(basename.decode('utf-8')) + " \n\
-            # Please enter a shorter directory name: ").decode('utf-8'))
+        # The current directory name is: " + get_suitable_basename(basename.decode('utf-8')) + " \n\
+        # Please enter a shorter directory name: ").decode('utf-8'))
 
     return os.path.join(output_dir, basename)
 
@@ -350,11 +353,12 @@ def transcode_release(flac_dir, output_dir, basename, output_format, max_threads
         # http://stackoverflow.com/questions/1408356/keyboard-interrupts-with-pythons-multiprocessing-pool?rq=1
         pool = multiprocessing.Pool(max_threads, initializer=pool_initializer)
         try:
-            result = pool.map_async(pool_transcode, [(filename, os.path.dirname(filename).replace(flac_dir, transcode_dir), output_format) for filename in flac_files])
+            result = pool.map_async(pool_transcode, [(filename, os.path.dirname(filename).replace(
+                flac_dir, transcode_dir), output_format) for filename in flac_files])
             result.get(60 * 60 * 12)
             pool.close()
         except:
-            #TODO: rewrite to if-then-else
+            # TODO: rewrite to if-then-else
             pool.terminate()
             raise
         finally:
