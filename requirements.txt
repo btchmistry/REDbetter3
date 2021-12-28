@@ -1,0 +1,5 @@
+discogs_client==2.3.0
+jsonpickle==1.4.2
+mutagen==1.45.1
+python3_discogs_client==2.3.12
+requests==2.18.4
