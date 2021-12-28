@@ -41,9 +41,8 @@ formats = {
            'encoding': 'V2 (VBR)'},
 }
 
-# TODO: Delete this function, it only refers to 1 torrent on  RED
 
-
+# TODO: Delete this function, it only refers to 1 torrent on RED
 def allowed_transcodes(torrent):
     """Some torrent types have transcoding restrictions."""
     preemphasis = re.search(
