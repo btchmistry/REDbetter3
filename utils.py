@@ -46,3 +46,17 @@ class Utilities:
             file_size_int = int(file_size)
             filelist.append([filename, file_size_int])
         return filelist
+
+    # Convert bytes to KB, MB, GB or TB, return round number
+    def prettify_bytes(self, bytes: int):
+        bytes_pretty = str(bytes)
+        if bytes >= 1024 ** 4:
+            return f'{round(bytes/(1024 ** 4))} TB'
+        elif bytes >= 1024 ** 3:
+            return f'{round(bytes/(1024 ** 3))} GB'
+        elif bytes >= 1024 ** 2:
+            return f'{round(bytes/(1024 ** 2))} MB'
+        elif bytes >= 1024:
+            return f'{round(bytes/1024)} KB'
+        else:
+            return bytes_pretty
