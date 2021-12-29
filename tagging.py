@@ -25,7 +25,7 @@
 """Simple tagging for redactedbetter.
 """
 
-import os.path
+from pathlib import Path
 import re
 import mutagen
 import mutagen.flac
@@ -110,7 +110,8 @@ def copy_tags(flac_file, transcode_file):
     flac_info = mutagen.flac.FLAC(flac_file)
     transcode_info = None
     valid_key_fn = None
-    transcode_ext = os.path.splitext(transcode_file)[1].lower()
+    # transcode_ext = os.path.splitext(transcode_file)[1].lower()
+    transcode_ext = Path(transcode_file).suffix.lower()
 
     if transcode_ext == '.flac':
         transcode_info = mutagen.flac.FLAC(transcode_file)

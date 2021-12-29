@@ -95,7 +95,7 @@ def parse_config(config_path: Path) -> Optional[ConfigParser]:
         config.add_section('redacted')
         config.set('redacted', 'api_key', '')
         config.set('redacted', 'data_dir', '')
-        config.set('redacted', 'output_dir', '')
+        config.set('redacted', 'output_dirs', '')
         config.set('redacted', 'torrent_dir', '')
         config.set('redacted', 'spectral_dir', '')
         config.set('redacted', 'formats', 'flac, v0, 320')
@@ -155,9 +155,10 @@ def main():
 
     api_key = config.get('redacted', 'api_key', fallback=None)
 
-    data_dir = Path(config.get('redacted', 'data_dir')).expanduser()
-    output_dir = Path(config.get('redacted', 'output_dir',
-                                 fallback=data_dir)).expanduser()
+    # data_dir = Path(config.get('redacted', 'data_dir')).expanduser()
+    data_dirs = config.get('redacted', 'data_dirs').split(', ')
+
+    output_dir = Path(config.get('redacted', 'output_dir')).expanduser()
     torrent_dir = Path(config.get('redacted', 'torrent_dir')).expanduser()
     supported_formats = [format.strip().upper()
                          for format in config.get('redacted', 'formats').split(',')]
@@ -216,6 +217,13 @@ def main():
                 f"Torrent {api.permalink(torrentid)} is a scene release, must be manually descened")
             cache.add(torrentid, 'scene')
             continue
+        # Check if torrent is trumpable, if so, it can only be uploaded if it is put in manually
+        # Some trumpable torrents are still fine to upload, like the ones without Lineage
+        if torrent['trumpable'] and not args.release_urls:
+            print(
+                f"Torrent {api.permalink(torrentid)} torrent is marked as trumpable, this will only be transcoded if added manually")
+            cache.add(torrentid, 'trumpable')
+            continue
 
         # Create infoblock
         artist = ""
@@ -243,8 +251,13 @@ def main():
         # Test if torrent is in it's own folder, if not, create one
         if not torrent['filePath']:
             file_name = html.unescape(torrent['fileList']).split('{{{')[0]
-            flac_file = Path(data_dir, file_name)
-            if not flac_file.exists():
+            # find correct data_dir
+            data_dir = ''
+            for path in data_dirs:
+                flac_file = Path(path, file_name)
+                if flac_file.exists():
+                    data_dir = path
+            if data_dir == '':
                 print(f"Path not found - skipping: {flac_file}")
                 continue
             # Flac folder name convention: Release Name (year) [FLAC]
@@ -254,6 +267,16 @@ def main():
                 flac_dir.mkdir()
             shutil.copy(flac_file, flac_dir)
         else:
+            file_name = html.unescape(torrent['fileList']).split('{{{')[0]
+            data_dir = ''
+            # find correct data_dir
+            for path in data_dirs:
+                flac_file = Path(path, html.unescape(torrent['filePath']), file_name)
+                if flac_file.exists():
+                    data_dir = path
+            if data_dir == '':
+                print(f"Path not found - skipping: {flac_file}")
+                continue
             flac_dir = Path(data_dir, html.unescape(torrent['filePath']))
 
         if do_24_bit == 'yes':

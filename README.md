@@ -70,8 +70,8 @@ You will receive a notification stating that you should edit the configuration f
 
 Open this file in your preferred text editor, and configure as desired. The options are as follows:
 * `api_key`: Your redacted.ch api key (can be generated in the user profile)
-* `data_dir`: The directory where your torrent downloads are stored.
-* `output_dir`: The directory where the transcoded torrent files will be stored. If left blank, it will use the value of `data_dir`.
+* `data_dirs`: The directories where your torrent downloads are stored. If you want to specify multiple directories, use dir1, dir2, dir3
+* `output_dir`: The directory where the transcoded torrent files will be stored.
 * `torrent_dir`: The directory where the generated `.torrent` files are stored.
 * `formats`: A comma space (`, `) separated list of formats you'd like to transcode to. By default, this will be `flac, v0, 320`. `flac` is included because REDbetter supports converting 24-bit FLAC to 16-bit FLAC. Note that `v2` is not included deliberately - v0 torrents trump v2 torrents per redacted rules.
 * `media`: A comma space (`, `) separated list of media types you want to consider for transcoding. The default value is all redacted lossless formats, but if you want to transcode only CD and vinyl media, for example, you would set this to `cd, vinyl`.
