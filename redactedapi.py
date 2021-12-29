@@ -3,43 +3,17 @@
 import re
 import json
 import time
-# import traceback
-# from pathlib import Path
 import requests
 from utils import Utilities
-
+from static import Static
+import logging
 
 # for later use: categories = {1: 'Music', 2: 'Applications', 3: 'E-Books',
 # 4: 'Audiobooks', 5: 'E-Learning Videos', 6: 'Comedy', 7: 'Comics'}
 
-# TODO: use logger instead of print allthrough the system
-
-# gazelle is picky about case in searches with &media=x
-
 ut = Utilities()
-
-media_search_map = {
-    'cd': 'CD',
-    'dvd': 'DVD',
-    'vinyl': 'Vinyl',
-    'soundboard': 'Soundboard',
-    'sacd': 'SACD',
-    'dat': 'DAT',
-    'web': 'WEB',
-    'blu-ray': 'Blu-ray'}
-
-lossless_media = set(media_search_map.keys())
-
-formats = {
-    'FLAC': {'format': 'FLAC',
-             'encoding': 'Lossless'},
-    'V0': {'format': 'MP3',
-           'encoding': 'V0 (VBR)'},
-    '320': {'format': 'MP3',
-            'encoding': '320'},
-    'V2': {'format': 'MP3',
-           'encoding': 'V2 (VBR)'},
-}
+st = Static()
+logger = logging.getLogger(__name__)
 
 
 # TODO: Delete this function, it only refers to 1 torrent on RED
@@ -50,7 +24,7 @@ def allowed_transcodes(torrent):
     if preemphasis:
         return []
     else:
-        return list(formats.keys())
+        return list(st.formats.keys())
 
 
 class LoginException(Exception):
@@ -94,11 +68,9 @@ class RedactedAPI:
             else:
                 raise LoginException
             self.api_key_authenticated = True
-            # if not self.sparse:
-            # print(f"Initializing with api key succes, username: {self.accountinfo.username}")
+            logger.info(f"Initializing with api key succes, username: {self.accountinfo.username}")
         except LoginException:
-            # if not self.sparse:
-            # print('Accessing with api key failed, check if key is in config or server is down')
+            logger.error('Accessing with api key failed, check if key is in config or server is down')
             pass
 
     def _get_account_info(self):
@@ -176,7 +148,7 @@ class RedactedAPI:
                     yield int(item['groupId']), int(item['torrentId'])
                 page += 1
         else:
-            print("Not authenticated")
+            logger.info("Not authenticated")
             return None
 
     def get_seeding(self):
@@ -195,17 +167,17 @@ class RedactedAPI:
                     yield int(item['groupId']), int(item['torrentId'])
                 page += 1
         else:
-            print("Not authenticated")
+            logger.info("Not authenticated")
             return None
 
-    def get_torrentgroup(self, groupid):
-        if self.api_key_authenticated:
-            tgroup = torrentgroup(**self.request('torrentgroup', id=groupid))
-            if tgroup is not None:
-                return tgroup
-        else:
-            print("Not authenticated")
-            return None
+    # def get_torrentgroup(self, groupid):
+    #     if self.api_key_authenticated:
+    #         tgroup = torrentgroup(**self.request('torrentgroup', id=groupid))
+    #         if tgroup is not None:
+    #             return tgroup
+    #     else:
+    #         print("Not authenticated")
+    #         return None
 
     def get_api_torrentgroup(self, groupid):
         if self.api_key_authenticated:
@@ -216,7 +188,7 @@ class RedactedAPI:
                     tgroup.torrents.append(apiTorrent(**torrent))
                 return tgroup
         else:
-            print("Not authenticated")
+            logger.info("Not authenticated")
             return None
 
     def release_url(self, groupid, torrentid):
@@ -311,16 +283,16 @@ class RedactedAPI:
                 if page > end_page:
                     break
                 if not self.sparse:
-                    print(f'Requesting page {page}')
+                    logger.info(f'Requesting page {page}')
                 requests = AJAXtoObj(**quickndirty_request(page))
                 if len(requests.results) == 0:
-                    print("requests.results = 0")
+                    logger.info("requests.results = 0")
                     break
                 for item in requests.results:
                     yield item
                 page += 1
         else:
-            print("Not authenticated")
+            logger.info("Not authenticated")
             return None
 
     def get_requests(self, start_page=0, end_page=1):
@@ -407,20 +379,20 @@ class RedactedAPI:
         if self.api_key_authenticated:
             page = start_page
             if not self.sparse:
-                print("Retrieving requests")
+                logger.info("Retrieving requests")
             while True:
                 if page >= end_page:
                     break
                 requests = AJAXtoObj(**self.request(
                     'requests', page=page))
                 if len(requests.results) == 0:
-                    print("requests.results = 0")
+                    logger.info("requests.results = 0")
                     break
                 for item in requests.results:
                     yield item
                 page += 1
         else:
-            print("Not authenticated")
+            logger.info("Not authenticated")
             return None
 
     def upload(self, group, torrent, new_torrent, format, description):
@@ -479,7 +451,7 @@ class RedactedAPI:
         "remasterRecordLabel": "",
         "remasterCatalogueNumber": "",
         """
-        print(format)
+
         if 'V0' in format:
             format_type = 'MP3'
             bitrate = 'V0 (VBR)'
@@ -496,26 +468,19 @@ class RedactedAPI:
         files = {"file_input": open(new_torrent, 'rb')}
         params = {'action': 'upload',
                   'type': 0,
-                  # - artists[] - (str)
-                  'artists[]': group.group['musicInfo']['artists'][0]['name'],
+                  'artists[]': group.musicInfo['artists'][0]['name'],
                   'importance[]': 1,
-                  'title': group.group['name'],
-                  'tags': group.group['tags'][0],
-                  # - (int) Edition year
-                  'remaster_year': torrent['remasterYear'],
-                  # - (str) Edition title
-                  'remaster_title': torrent['remasterTitle'],
-                  # - (str) Edition record label
-                  'remaster_record_label': torrent['remasterRecordLabel'],
-                  # - (str) Edition catalog number
-                  'remaster_catalogue_number': torrent['remasterCatalogueNumber'],
-                  'format': format_type,  # - (str) MP3, FLAC, etc
-                  'bitrate': bitrate,  # - (str) 192, Lossless, Other, etc
-                  # - (str) CD, DVD, Vinyl, etc
-                  'media': torrent['media'],
-                  # - (str) Release (torrent) description
+                  'title': group.name,
+                  'tags': group.tags[0],
+                  'remaster_year': torrent.remasterYear,
+                  'remaster_title': torrent.remasterTitle,
+                  'remaster_record_label': torrent.remasterRecordLabel,
+                  'remaster_catalogue_number': torrent.remasterCatalogueNumber,
+                  'format': format_type,
+                  'bitrate': bitrate,
+                  'media': torrent.media,
                   'release_desc': description,
-                  'groupid': group.group['id']}                                   # - (int) torrent groupID (ie album) this belongs to
+                  'groupid': group.id}
 
         # Upload torrent using api key
         while time.time() - self.last_request < self.rate_limit:
@@ -544,20 +509,20 @@ class RedactedAPI:
         if self.api_key_authenticated:
             page = start_page
             if not self.sparse:
-                print("Retrieving notifications")
+                logger.info("Retrieving notifications")
             while True:
                 if page >= end_page:
                     break
                 requests = AJAXtoObj(**self.request(
                     'notifications', page=page))
                 if len(requests.results) == 0:
-                    print("requests.results = 0")
+                    logger.info("requests.results = 0")
                     break
                 for item in requests.results:
                     yield item
                 page += 1
         else:
-            print("Not authenticated")
+            logger.info("Not authenticated")
             return None
 
 
@@ -567,224 +532,12 @@ class AJAXtoObj:
 
 
 class REDuserprofile:
-    """
-    User Profile
-    URL:ajax.php?action=user
-    Arguments:
-    id - id of the user to display
-    Response format:
-    {
-        "status": "success",
-        "response": {
-            "username": "dr4g0n",
-            "avatar": "http://v0lu.me/rubadubdub.png",
-            "isFriend": false,
-            "profileText": "",
-            "profileAlbum": {
-                "id": "53",
-                "name": "A Charlie Brown Christmas",
-                "review": ""
-            },
-            "stats": {
-                "joinedDate": "2007-10-28 14:26:12",
-                "lastAccess": "2012-08-09 00:17:52",
-                "uploaded": 585564424629,
-                "downloaded": 177461229738,
-                "ratio": 3.3,
-                "requiredRatio": 0.6
-            },
-            "ranks": {
-                "uploaded": 98,
-                "downloaded": 95,
-                "uploads": 85,
-                "requests": 0,
-                "bounty": 79,
-                "posts": 98,
-                "artists": 0,
-                "overall": 85
-            },
-            "personal": {
-                "class": "VIP",
-                "paranoia": 0,
-                "paranoiaText": "Off",
-                "donor": true,
-                "warned": false,
-                "enabled": true,
-                "passkey":, redacted
-            },
-            "community": {
-                "posts": 863,
-                "torrentComments": 13,
-                "collagesStarted": 0,
-                "collagesContrib": 0,
-                "requestsFilled": 0,
-                "requestsVoted": 13,
-                "perfectFlacs": 2,
-                "uploaded": 29,
-                "groups": 14,
-                "seeding": 309,
-                "leeching": 0,
-                "snatched": 678,
-                "invited": 7
-            }
-        }
-    }
-    """
-
     def __init__(self, id, **entries):
         self.id = id
         self.__dict__.update(entries)
 
 
 class usertorrents:
-    """
-    User Torrents (Seeding, Leeching, Uploaded, Snatched)
-    URL:ajax.php?action=user_torrents&id=<User ID>&type=<Torrent Type>&limit=<Results Limit>&offset=<Torrents Offset>
-    Arguments:
-    id - request id
-    type - type of torrents to display options are: seeding leeching uploaded snatched
-    limit - number of results to display (default: 500)
-    offset - number of results to offset by (default: 0)
-    Response format:
-    {
-      "status": "success",
-      "response": {
-        "seeding": [
-          {
-            "groupId": "4",
-            "name": "If You Have Ghost",
-            "torrentId": "4",
-            "artistName": "Ghost B.C.",
-            "artistId": "4"
-          },
-          {
-            "groupId": "3",
-            "name": "Absolute Dissent",
-            "torrentId": "3",
-            "artistName": "Killing Joke",
-            "artistId": "3"
-          }
-        ]
-      }
-    }
-    """
-
-    def __init__(self, **entries):
-        self.__dict__.update(entries)
-
-
-class torrentgroup:
-    """
-    {
-        "status": "success",
-        "response": {
-            "group": {
-                "wikiBody": "",
-                "wikiImage": "http://whatimg.com/i/ralpc.jpg",
-                "id": 72189681,
-                "name": "Fear Not",
-                "year": 2012,
-                "recordLabel": "Hospital Records",
-                "catalogueNumber": "NHS209CD",
-                "releaseType": 1,
-                "categoryId": 1,
-                "categoryName": "Music",
-                "time": "2012-05-02 07:39:30",
-                "collages": [],
-                "personalCollages": [],
-                "vanityHouse": false,
-                "musicInfo": {
-                    "composers": [],
-                    "dj": [],
-                    "artists": [
-                        {
-                            "id": 1460,
-                            "name": "Logistics"
-                        }
-                    ],
-                    "with": [
-                        {
-                            "id": 25351,
-                            "name": "Alice Smith"
-                        },
-                        {
-                            "id": 44545,
-                            "name": "Nightshade"
-                        },
-                        {
-                            "id": 249446,
-                            "name": "Sarah Callander"
-                        }
-                    ],
-                    "conductor": [],
-                    "remixedBy": [],
-                    "producer": []
-                }
-            },
-            "torrents": [
-                {
-                    "id": 29991962,
-                    "media": "CD",
-                    "format": "FLAC",
-                    "encoding": "Lossless",
-                    "remastered": false,
-                    "remasterYear": 0,
-                    "remasterTitle": "",
-                    "remasterRecordLabel": "",
-                    "remasterCatalogueNumber": "",
-                    "scene": true,
-                    "hasLog": false,
-                    "hasCue": false,
-                    "logScore": 0,
-                    "fileCount": 19,
-                    "size": 527749302,
-                    "seeders": 20,
-                    "leechers": 0,
-                    "snatched": 55,
-                    "hasSnatched": true,
-                    "trumpable": true,
-                    "lossyWebApproved": false,
-                    "lossyMasterApproved": true,
-                    "freeTorrent": false,
-                    "time": "2012-04-14 15:57:00",
-                    "description": "",
-                    "fileList": "00-logistics-fear_not-cd-flac-2012.jpg{{{1233205}}}|||00-logistics-fear_not-cd-flac-2012.m3u{{{538}}}|||00-logistics-fear_not-cd-flac-2012.nfo{{{1607}}}|||00-logistics-fear_not-cd-flac-2012.sfv{{{688}}}|||01-logistics-fear_not.flac{{{38139451}}}|||02-logistics-timelapse.flac{{{39346037}}}|||03-logistics-2999_(wherever_you_go).flac{{{41491133}}}|||04-logistics-try_again.flac{{{32151567}}}|||05-logistics-we_are_one.flac{{{40778041}}}|||06-logistics-crystal_skies_(feat_nightshade_and_sarah_callander).flac{{{34544405}}}|||07-logistics-feels_so_good.flac{{{41363732}}}|||08-logistics-running_late.flac{{{16679269}}}|||09-logistics-early_again.flac{{{35373278}}}|||10-logistics-believe_in_me.flac{{{39495420}}}|||11-logistics-letting_go.flac{{{30846730}}}|||12-logistics-sendai_song.flac{{{35021141}}}|||13-logistics-over_and_out.flac{{{44621200}}}|||14-logistics-destination_unknown.flac{{{13189493}}}|||15-logistics-watching_the_world_go_by_(feat_alice_smith).flac{{{43472367}}}",
-                    "filePath": "Logistics-Fear_Not-CD-FLAC-2012-TaBoo",
-                    "userId": 567,
-                    "username": null
-                },
-                {
-                    "id": 30028889,
-                    "media": "CD",
-                    "format": "MP3",
-                    "encoding": "320",
-                    "remastered": false,
-                    "remasterYear": 0,
-                    "remasterTitle": "",
-                    "remasterRecordLabel": "",
-                    "remasterCatalogueNumber": "",
-                    "scene": false,
-                    "hasLog": false,
-                    "hasCue": false,
-                    "logScore": 0,
-                    "fileCount": 16,
-                    "size": 167593347,
-                    "seeders": 7,
-                    "leechers": 0,
-                    "snatched": 30,
-                    "freeTorrent": false,
-                    "time": "2012-05-02 07:39:30",
-                    "description": "",
-                    "fileList": "01 Logistics - Fear Not.mp3{{{11440094}}}|||02 Logistics - Timelapse.mp3{{{11931197}}}|||03 Logistics - 2999 (Wherever You Go).mp3{{{12767128}}}|||04 Logistics - Try Again.mp3{{{10123523}}}|||05 Logistics - We Are One.mp3{{{12664716}}}|||06 Logistics - Crystal Skies.mp3{{{10048294}}}|||07 Logistics - Feels So Good.mp3{{{11971952}}}|||08 Logistics - Running Late.mp3{{{6810155}}}|||09 Logistics - Early Again.mp3{{{11073337}}}|||10 Logistics - Believe In Me.mp3{{{12421259}}}|||11 Logistics - Letting Go.mp3{{{11697141}}}|||12 Logistics - Sendai Song.mp3{{{11732669}}}|||13 Logistics - Over And Out.mp3{{{15169339}}}|||14 Logistics - Destination Unknown.mp3{{{4976367}}}|||15 Logistics - Watching The World Go By.mp3{{{12469335}}}|||Cover.jpg{{{296841}}}",
-                    "filePath": "Logistics - Fear Not (NHS209CD) [CD] (2012)",
-                    "userId": 340871,
-                    "username": null
-                }
-            ]
-        }
-    }
-    """
-
     def __init__(self, **entries):
         self.__dict__.update(entries)
 
@@ -822,7 +575,8 @@ class apiTorrent():
         self.userId = None
         self.username = None
         self.__dict__.update(entries)
-        self.fileList = ut.split_filelist(self.fileList)
+        if self.fileList:
+            self.fileList = ut.split_filelist(self.fileList)
 
 
 class apiTorrentGroup():

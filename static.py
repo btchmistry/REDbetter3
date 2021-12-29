@@ -80,4 +80,22 @@ class Static:
         self.characters = ['.', ',', '?', '!', '/', '\\', '-', '_', ':', '~', ' ', '[', ']', '{', '}', '(', ')',
                            '│', '|', '"', '&', '@', '+', 'ー', '！', '・', '～', ';', '…', '—', '*', '∕', '〜', '•']
 
+        self.formats = {'FLAC': {'format': 'FLAC', 'encoding': 'Lossless'},
+                        'V0': {'format': 'MP3', 'encoding': 'V0 (VBR)'},
+                        '320': {'format': 'MP3', 'encoding': '320'},
+                        'V2': {'format': 'MP3', 'encoding': 'V2 (VBR)'},
+                        }
+
+        self.media_search_map = {
+            'cd': 'CD',
+            'dvd': 'DVD',
+            'vinyl': 'Vinyl',
+            'soundboard': 'Soundboard',
+            'sacd': 'SACD',
+            'dat': 'DAT',
+            'web': 'WEB',
+            'blu-ray': 'Blu-ray'}
+
+        self.lossless_media = set(self.media_search_map.keys())
+
         pass
