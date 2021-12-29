@@ -185,6 +185,7 @@ def main():
 
     retry_modes = set(args.retry)
 
+    # Main loop that does all the transcoding, etc.
     cache_count = 0
     for groupid, torrentid in candidates:
         # Test if torrent is in cache to reduce calls to server
