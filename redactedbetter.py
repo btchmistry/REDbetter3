@@ -103,8 +103,8 @@ def parse_config(config_path: Path) -> Optional[ConfigParser]:
         config_path.parent.mkdir(parents=True, exist_ok=True)
         config.add_section('redacted')
         config.set('redacted', 'api_key', '')
-        config.set('redacted', 'data_dir', '')
-        config.set('redacted', 'output_dirs', '')
+        config.set('redacted', 'data_dirs', '')
+        config.set('redacted', 'output_dir', '')
         config.set('redacted', 'torrent_dir', '')
         config.set('redacted', 'spectral_dir', '')
         config.set('redacted', 'formats', 'flac, v0, 320')
@@ -188,12 +188,9 @@ def main():
                 cache_count += 1
                 continue
 
-        # group is a not-so-object-oriented object from RedactedAPI, a better implementation is get_api_torrentgroup
-        # which returns a torrentgroup including apiTorrent objects (current implementation returns torrent dicts)
-        # Further improvement could be to create a musicinfo Object as well
-        # group = api.get_torrentgroup(groupid)
         torrent_group = api.get_api_torrentgroup(groupid)
 
+        logger.info(torrentid)
         for torrent in torrent_group.torrents:
             if torrent.id == torrentid:
                 api_torrent = torrent
