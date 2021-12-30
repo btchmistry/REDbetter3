@@ -481,7 +481,7 @@ class RedactedAPI:
                   'media': torrent.media,
                   'release_desc': description,
                   'groupid': group.id}
-
+        logger.debug(params)
         # Upload torrent using api key
         while time.time() - self.last_request < self.rate_limit:
             time.sleep(0.1)

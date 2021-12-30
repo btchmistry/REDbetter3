@@ -126,7 +126,7 @@ def parse_config(config_path: Path) -> Optional[ConfigParser]:
 
 def main():
     # Processing command line arguments:
-    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter, prog='REDbetter3')
+    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('release_urls', nargs='*', help='the URL where the release is located')
     parser.add_argument('-s', '--single', action='store_true', help='only add one format per release (useful for getting unique groups)')
     parser.add_argument('-j', '--threads', type=int, help='number of threads to use when transcoding', default=max(cpu_count() - 1, 1))
@@ -173,11 +173,14 @@ def main():
     else:
         candidates = api.get_seeding()
 
+    # TODO: remove or fix retry modes, its broken now
     retry_modes = set(args.retry)
+    logger.debug(retry_modes)
 
     # Main loop that does all the transcoding, etc.
     cache_count = 0
     for groupid, torrentid in candidates:
+        logger.debug(torrentid)
         # Test if torrent is in cache to reduce calls to server
         if torrentid in cache.ids and not args.force_format:
             retry = False
@@ -190,10 +193,10 @@ def main():
 
         torrent_group = api.get_api_torrentgroup(groupid)
 
-        logger.info(torrentid)
         for torrent in torrent_group.torrents:
             if torrent.id == torrentid:
                 api_torrent = torrent
+        logger.debug(f'{torrentid} type: {type(torrentid)} {api_torrent.id} type: {type(api_torrent.id)}')
 
         # Test if torrent is flac
         if "FLAC" not in api_torrent.format and "Lossless" not in api_torrent.encoding:
@@ -236,7 +239,7 @@ def main():
 
         # Test if torrent is in it's own folder, if not, create one
         if not api_torrent.filePath:
-            file_name = html.unescape(api_torrent.fileList).split('{{{')[0]
+            file_name = html.unescape(api_torrent.fileList)[0][0]
             # find correct data_dir
             data_dir = ''
             for path in data_dirs:
@@ -331,11 +334,11 @@ def main():
                 logger.info(f'Adding format {format}')
 
                 with tempfile.TemporaryDirectory() as tmpdir:
-                    if len(torrent.remasterTitle) >= 1:
+                    if len(api_torrent.remasterTitle) >= 1:
                         basename = html.unescape(artist) + " - " + html.unescape(torrent_group.name) + " (" + html.unescape(
-                            torrent.remasterTitle) + ") " + "(" + year + ") [" + torrent.media + " - "
+                            api_torrent.remasterTitle) + ") " + "(" + year + ") [" + api_torrent.media + " - "
                     else:
-                        basename = html.unescape(artist) + " - " + html.unescape(torrent_group.name) + " (" + year + ") [" + torrent.media + " - "
+                        basename = html.unescape(artist) + " - " + html.unescape(torrent_group.name) + " (" + year + ") [" + api_torrent.media + " - "
 
                     transcode_dir = transcode.transcode_release(
                         flac_dir, output_dir, basename, format, max_threads=args.threads)
@@ -353,13 +356,12 @@ def main():
 
                     permalink = api.permalink(torrentid)
                     description = create_description(
-                        torrent, flac_dir, format, permalink)
+                        api_torrent, flac_dir, format, permalink)
 
                     if not args.no_upload:
                         logger.info('Uploading torrent!')
                         shutil.copy(new_torrent, torrent_dir)
-                        response = api.upload(
-                            torrent_group, torrent, new_torrent, format, description)
+                        response = api.upload(torrent_group, api_torrent, new_torrent, format, description)
                         if response['status'] == 'success':
                             logger.info(f'New torrent uploaded: {api.permalink(response["response"]["torrentid"])}')
                             cache.add(torrentid, 'done')
