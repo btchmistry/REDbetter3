@@ -141,3 +141,7 @@ If you have any issues using the script, or would like to suggest a feature, fee
 ## Development
 
 If you like to join the team to develop this script, please get in contact on redacted.
+
+### Documentation, style guidelines
+
+The code should be pep8 compliant and follow the Numpy style guidelines https://numpydoc.readthedocs.io/en/latest/format.html
